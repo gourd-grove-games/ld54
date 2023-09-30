@@ -3,35 +3,25 @@
 
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
 use bevy::pbr::DirectionalLightShadowMap;
-use bevy_panorbit_camera::*;
+use bevy::prelude::*;
 use bevy::{
     asset::LoadState,
     core_pipeline::experimental::taa::{TemporalAntiAliasBundle, TemporalAntiAliasPlugin},
-    pbr::{
-        ScreenSpaceAmbientOcclusionBundle, ScreenSpaceAmbientOcclusionQualityLevel,
-        ScreenSpaceAmbientOcclusionSettings,
-    },
-    core_pipeline::{
-        bloom::{BloomCompositeMode, BloomSettings},
-        tonemapping::Tonemapping,
-    },
     core_pipeline::Skybox,
-    prelude::*,
-    render::camera::TemporalJitter,
+    core_pipeline::{bloom::BloomSettings, tonemapping::Tonemapping},
+    pbr::ScreenSpaceAmbientOcclusionBundle,
     render::{
         render_resource::{TextureViewDescriptor, TextureViewDimension},
         renderer::RenderDevice,
         texture::CompressedImageFormats,
     },
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_panorbit_camera::*;
 
 const CUBEMAPS: &[(&str, CompressedImageFormats)] = &[
-    (
-        "textures/bsb.png",
-        CompressedImageFormats::NONE,
-    ),
+    ("textures/bsb.png", CompressedImageFormats::NONE),
     (
         "textures/Ryfjallet_cubemap_astc4x4.ktx2",
         CompressedImageFormats::ASTC_LDR,
@@ -46,25 +36,27 @@ const CUBEMAPS: &[(&str, CompressedImageFormats)] = &[
     ),
 ];
 
-
 const BOARD_SIZE_I: usize = 5;
 const BOARD_SIZE_J: usize = 5;
 
 fn main() {
     App::new()
+        .init_resource::<Board>()
+        .register_type::<BoardPos>()
+        .register_type::<BaseTile>()
+        .register_type::<Board>()
+        .insert_resource(DirectionalLightShadowMap { size: 2048 })
         .add_plugins(DefaultPlugins)
         .add_plugins(PanOrbitCameraPlugin)
         .add_plugins(TemporalAntiAliasPlugin)
         .add_systems(Startup, setup)
         .add_systems(
             Update,
-            (
-                cycle_cubemap_asset,
-                asset_loaded.after(cycle_cubemap_asset),
-            ),
+            (cycle_cubemap_asset, asset_loaded.after(cycle_cubemap_asset)),
         )
         .insert_resource(ClearColor(Color::rgb_linear(0.5, 1.3, 1.9)))
         .insert_resource(DirectionalLightShadowMap { size: 2048 })
+        .add_plugins(WorldInspectorPlugin::default())
         .run();
 }
 
@@ -75,51 +67,84 @@ struct Cubemap {
     image_handle: Handle<Image>,
 }
 
-enum BaseTileType {
-    Grass,
-    Stone,
-    Wood
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
+struct Board {
+    i_len: usize,
+    j_len: usize,
 }
 
-struct BaseTile {
-    tile_type: BaseTileType,
+impl Default for Board {
+    fn default() -> Self {
+        Board {
+            i_len: BOARD_SIZE_I,
+            j_len: BOARD_SIZE_J,
+        }
+    }
+}
+
+impl Board {
+    fn spawn(&self, commands: &mut Commands, asset_server: &Res<AssetServer>) {
+        let cell_scene = asset_server.load("models/grass_tile.glb#Scene0");
+        for j in 0..self.i_len {
+            for i in 0..self.j_len {
+                let height = 0.0; //rand::thread_rng().gen_range(-0.1..0.1);
+                commands.spawn((
+                    SceneBundle {
+                        transform: Transform::from_xyz(
+                            i as f32 - (self.i_len as f32 / 2.0),
+                            height - 0.2,
+                            j as f32 - (self.j_len as f32 / 2.0),
+                        ),
+                        scene: cell_scene.clone(),
+                        ..default()
+                    },
+                    BaseTile::default(),
+                    BoardPos { i, j },
+                    name_tile(),
+                ));
+            }
+        }
+    }
+}
+
+fn name_tile() -> Name {
+    Name::new("Tile")
+}
+
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
+enum BaseTile {
+    #[default]
+    Grass,
+    Stone,
+    Wood,
+}
+
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+struct BoardPos {
+    i: usize,
+    j: usize,
 }
 
 fn setup(
-    asset_server: Res<AssetServer>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut images: ResMut<Assets<Image>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
+    board: Res<Board>,
 ) {
-
+    board.spawn(&mut commands, &asset_server);
     let material_emissive1 = materials.add(StandardMaterial {
         emissive: Color::rgb_linear(13.99, 5.32, 2.0), // 4. Put something bright in a dark environment to see the effect
         ..default()
     });
 
-    let grass_scene = asset_server.load("models/grass_tile.glb#Scene0");
-    let stone_scene = asset_server.load("models/stone_tile.glb#Scene0");
-    let wood_scene = asset_server.load("models/wood_tile.glb#Scene0");
-
-    let board: Vec<Vec<BaseTile>> = (0..BOARD_SIZE_J)
-        .map(|j| {
-            (0..BOARD_SIZE_I)
-                .map(|i| {  
-                    let height = 0.0;//rand::thread_rng().gen_range(-0.1..0.1);
-                    commands.spawn(SceneBundle {
-                        transform: Transform::from_xyz(i as f32 - (BOARD_SIZE_I as f32 / 2.0) + 0.5, height - 0.2, j as f32 - (BOARD_SIZE_J as f32 / 2.0) + 0.5),
-                        scene: tile_scene.clone(),
-                        ..default()
-                    });
-                    BaseTile { tile_type: BaseTileType::Grass }
-                })
-                .collect()
-        })
-        .collect();
-        
-
-        // cube
+    // let grass_scene = asset_server.load("models/grass_tile.glb#Scene0");
+    // let stone_scene = asset_server.load("models/stone_tile.glb#Scene0");
+    // let wood_scene = asset_server.load("models/wood_tile.glb#Scene0");
+    // cube
     commands.spawn(PbrBundle {
         mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
         material: material_emissive1,
@@ -152,25 +177,23 @@ fn setup(
         brightness: 1.0,
     });
 
-
-
-    commands.spawn((
-        Camera3dBundle {
-            camera: Camera {
-                hdr: true,
+    commands
+        .spawn((
+            Camera3dBundle {
+                camera: Camera {
+                    hdr: true,
+                    ..default()
+                },
+                tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+                transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
                 ..default()
             },
-            tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
-            transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
-            ..default()
-        },
-        BloomSettings::default(),
-        PanOrbitCamera::default(),
-        Skybox(skybox_handle.clone()),
-    ))
-    .insert(ScreenSpaceAmbientOcclusionBundle::default())
-    .insert(TemporalAntiAliasBundle::default());
-
+            BloomSettings::default(),
+            PanOrbitCamera::default(),
+            Skybox(skybox_handle.clone()),
+        ))
+        .insert(ScreenSpaceAmbientOcclusionBundle::default())
+        .insert(TemporalAntiAliasBundle::default());
 
     commands.insert_resource(Cubemap {
         is_loaded: false,
@@ -226,7 +249,8 @@ fn asset_loaded(
     mut cubemap: ResMut<Cubemap>,
     mut skyboxes: Query<&mut Skybox>,
 ) {
-    if !cubemap.is_loaded && asset_server.get_load_state(&cubemap.image_handle) == LoadState::Loaded {
+    if !cubemap.is_loaded && asset_server.get_load_state(&cubemap.image_handle) == LoadState::Loaded
+    {
         info!("Swapping to {}...", CUBEMAPS[cubemap.index].0);
         let image = images.get_mut(&cubemap.image_handle).unwrap();
         // NOTE: PNGs do not have any metadata that could indicate they contain a cubemap texture,
