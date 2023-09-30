@@ -3,7 +3,7 @@
 
 use std::f32::consts::PI;
 
-use bevy::{pbr::CascadeShadowConfigBuilder, prelude::*};
+use bevy::prelude::*;
 use bevy_panorbit_camera::*;
 
 fn main() {
@@ -11,7 +11,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(PanOrbitCameraPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, (movement))
+        .add_systems(Update, movement)
         .run();
 }
 
@@ -98,7 +98,7 @@ fn setup(
         },
         Movable,
     ));
-    
+
     commands.spawn((
         Camera3dBundle {
             transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
