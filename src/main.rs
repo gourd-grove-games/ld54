@@ -3,8 +3,9 @@
 
 use std::f32::consts::PI;
 
-use bevy::prelude::*;
 use bevy::pbr::DirectionalLightShadowMap;
+use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panorbit_camera::*;
 
 const BOARD_SIZE_I: usize = 5;
@@ -12,47 +13,86 @@ const BOARD_SIZE_J: usize = 5;
 
 fn main() {
     App::new()
+        .init_resource::<Board>()
+        .insert_resource(DirectionalLightShadowMap { size: 2048 })
         .add_plugins(DefaultPlugins)
         .add_plugins(PanOrbitCameraPlugin)
         .add_systems(Startup, setup)
         //.add_systems(Update, adjust_directional_light_biases)
-        .insert_resource(DirectionalLightShadowMap { size: 2048 })
+        .add_plugins(WorldInspectorPlugin::default())
         .run();
 }
 
-enum BaseTileType {
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+enum BaseTile {
+    #[default]
     Grass,
     Stone,
-    Wood
+    Wood,
 }
 
-struct BaseTile {
-    tile_type: BaseTileType,
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+struct Position {
+    i: usize,
+    j: usize,
+}
+
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
+struct Board {
+    i_len: usize,
+    j_len: usize,
+}
+
+impl Default for Board {
+    fn default() -> Self {
+        Board {
+            i_len: BOARD_SIZE_I,
+            j_len: BOARD_SIZE_I,
+        }
+    }
+}
+
+fn name_tile() -> Name {
+    Name::new("Tile")
+}
+
+impl Board {
+    fn spawn(&self, commands: &mut Commands, asset_server: Res<AssetServer>) {
+        let cell_scene = asset_server.load("models/grass_tile.glb#Scene0");
+        for j in 0..self.i_len {
+            for i in 0..self.j_len {
+                let height = 0.0; //rand::thread_rng().gen_range(-0.1..0.1);
+                commands.spawn((
+                    SceneBundle {
+                        transform: Transform::from_xyz(
+                            i as f32 - (BOARD_SIZE_I as f32 / 2.0),
+                            height - 0.2,
+                            j as f32 - (BOARD_SIZE_J as f32 / 2.0),
+                        ),
+                        scene: cell_scene.clone(),
+                        ..default()
+                    },
+                    BaseTile::default(),
+                    Position { i, j },
+                    name_tile(),
+                ));
+            }
+        }
+    }
 }
 
 /// set up a simple 3D scene
 fn setup(
     mut commands: Commands,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    // mut meshes: ResMut<Assets<Mesh>>,
+    // mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
+    board: Res<Board>,
 ) {
-    let cell_scene = asset_server.load("models/grass_tile.glb#Scene0");
-    let board: Vec<Vec<BaseTile>> = (0..BOARD_SIZE_J)
-        .map(|j| {
-            (0..BOARD_SIZE_I)
-                .map(|i| {  
-                    let height = 0.0;//rand::thread_rng().gen_range(-0.1..0.1);
-                    commands.spawn(SceneBundle {
-                        transform: Transform::from_xyz(i as f32 - (BOARD_SIZE_I as f32 / 2.0), height - 0.2, j as f32 - (BOARD_SIZE_J as f32 / 2.0)),
-                        scene: cell_scene.clone(),
-                        ..default()
-                    });
-                    BaseTile { tile_type: BaseTileType::Grass }
-                })
-                .collect()
-        })
-        .collect();
+    board.spawn(&mut commands, asset_server);
 
     commands.spawn(DirectionalLightBundle {
         directional_light: DirectionalLight {
