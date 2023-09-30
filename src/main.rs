@@ -5,6 +5,8 @@ use bevy::{
     sprite::collide_aabb::{collide, Collision},
     sprite::MaterialMesh2dBundle,
 };
+mod land;
+mod nutrients;
 
 // These constants are defined in `Transform` units.
 // Using the default 2D camera they correspond 1:1 with screen pixels.
@@ -43,7 +45,7 @@ const SCOREBOARD_TEXT_PADDING: Val = Val::Px(5.0);
 const BACKGROUND_COLOR: Color = Color::rgb(0.9, 0.9, 0.9);
 const PADDLE_COLOR: Color = Color::rgb(0.3, 0.3, 0.7);
 const BALL_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
-const BRICK_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
+const LAND_COLOR: Color = Color::DARK_GREEN;
 const WALL_COLOR: Color = Color::rgb(0.8, 0.8, 0.8);
 const TEXT_COLOR: Color = Color::rgb(0.5, 0.5, 1.0);
 const SCORE_COLOR: Color = Color::rgb(1.0, 0.5, 0.5);
@@ -181,7 +183,11 @@ fn setup(
     asset_server: Res<AssetServer>,
 ) {
     // Camera
-    commands.spawn(Camera2dBundle::default());
+    // Create an isomorphic camera that covers the entire arena
+    commands.spawn(Camera2dBundle {
+        transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1000.0)),
+        ..Default::default()
+    });
 
     // Sound
     let ball_collision_sound = asset_server.load("sounds/breakout_collision.ogg");
@@ -289,7 +295,7 @@ fn setup(
             commands.spawn((
                 SpriteBundle {
                     sprite: Sprite {
-                        color: BRICK_COLOR,
+                        color: LAND_COLOR,
                         ..default()
                     },
                     transform: Transform {
@@ -301,6 +307,7 @@ fn setup(
                 },
                 Brick,
                 Collider,
+                land::Land,
             ));
         }
     }
