@@ -14,16 +14,20 @@ const BOARD_SIZE_J: usize = 5;
 fn main() {
     App::new()
         .init_resource::<Board>()
+        .register_type::<BoardPos>()
+        .register_type::<BaseTile>()
+        .register_type::<Board>()
         .insert_resource(DirectionalLightShadowMap { size: 2048 })
         .add_plugins(DefaultPlugins)
         .add_plugins(PanOrbitCameraPlugin)
         .add_systems(Startup, setup)
+        // .add_systems(Update, tick_tiles)
         //.add_systems(Update, adjust_directional_light_biases)
         .add_plugins(WorldInspectorPlugin::default())
         .run();
 }
 
-#[derive(Component, Reflect, Default)]
+#[derive(Component, Reflect, Default, Debug)]
 #[reflect(Component)]
 enum BaseTile {
     #[default]
@@ -34,7 +38,7 @@ enum BaseTile {
 
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
-struct Position {
+struct BoardPos {
     i: usize,
     j: usize,
 }
@@ -68,19 +72,25 @@ impl Board {
                 commands.spawn((
                     SceneBundle {
                         transform: Transform::from_xyz(
-                            i as f32 - (BOARD_SIZE_I as f32 / 2.0),
+                            i as f32 - (self.i_len as f32 / 2.0),
                             height - 0.2,
-                            j as f32 - (BOARD_SIZE_J as f32 / 2.0),
+                            j as f32 - (self.j_len as f32 / 2.0),
                         ),
                         scene: cell_scene.clone(),
                         ..default()
                     },
                     BaseTile::default(),
-                    Position { i, j },
+                    BoardPos { i, j },
                     name_tile(),
                 ));
             }
         }
+    }
+}
+
+fn tick_tiles(query: Query<(&BoardPos, &BaseTile)>) {
+    for (pos, tile) in query.iter() {
+        info!("Tile at {},{} is {:?}", pos.i, pos.j, tile);
     }
 }
 
