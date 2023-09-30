@@ -4,19 +4,31 @@
 use std::f32::consts::PI;
 
 use bevy::prelude::*;
+use bevy::pbr::DirectionalLightShadowMap;
 use bevy_panorbit_camera::*;
+
+const BOARD_SIZE_I: usize = 5;
+const BOARD_SIZE_J: usize = 5;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(PanOrbitCameraPlugin)
         .add_systems(Startup, setup)
-        .add_systems(Update, movement)
+        //.add_systems(Update, adjust_directional_light_biases)
+        .insert_resource(DirectionalLightShadowMap { size: 2048 })
         .run();
 }
 
-#[derive(Component)]
-struct Movable;
+enum BaseTileType {
+    Grass,
+    Stone,
+    Wood
+}
+
+struct BaseTile {
+    tile_type: BaseTileType,
+}
 
 /// set up a simple 3D scene
 fn setup(
@@ -25,79 +37,37 @@ fn setup(
     mut materials: ResMut<Assets<StandardMaterial>>,
     asset_server: Res<AssetServer>,
 ) {
-    // ground plane
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(shape::Plane::from_size(10.0).into()),
-        material: materials.add(StandardMaterial {
-            base_color: Color::WHITE,
-            perceptual_roughness: 1.0,
+    let cell_scene = asset_server.load("models/grass_tile.glb#Scene0");
+    let board: Vec<Vec<BaseTile>> = (0..BOARD_SIZE_J)
+        .map(|j| {
+            (0..BOARD_SIZE_I)
+                .map(|i| {  
+                    let height = 0.0;//rand::thread_rng().gen_range(-0.1..0.1);
+                    commands.spawn(SceneBundle {
+                        transform: Transform::from_xyz(i as f32 - (BOARD_SIZE_I as f32 / 2.0), height - 0.2, j as f32 - (BOARD_SIZE_J as f32 / 2.0)),
+                        scene: cell_scene.clone(),
+                        ..default()
+                    });
+                    BaseTile { tile_type: BaseTileType::Grass }
+                })
+                .collect()
+        })
+        .collect();
+
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            illuminance: 20000.0,
+            shadows_enabled: true,
             ..default()
-        }),
+        },
+        transform: Transform::from_rotation(Quat::from_euler(
+            EulerRot::ZYX,
+            0.0,
+            PI / 2.,
+            -PI / 4.,
+        )),
         ..default()
     });
-
-    // left wall
-    let mut transform = Transform::from_xyz(2.5, 2.5, 0.0);
-    transform.rotate_z(PI / 2.);
-    commands.spawn(PbrBundle {
-        mesh: meshes.add(Mesh::from(shape::Box::new(5.0, 0.15, 5.0))),
-        transform,
-        material: materials.add(StandardMaterial {
-            base_color: Color::INDIGO,
-            perceptual_roughness: 1.0,
-            ..default()
-        }),
-        ..default()
-    });
-
-    // Bevy logo to demonstrate alpha mask shadows
-    let mut transform = Transform::from_xyz(-2.2, 0.5, 1.0);
-    transform.rotate_y(PI / 8.);
-    commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Quad::new(Vec2::new(2.0, 0.5)))),
-            transform,
-            material: materials.add(StandardMaterial {
-                base_color_texture: Some(asset_server.load("branding/bevy_logo_light.png")),
-                perceptual_roughness: 1.0,
-                alpha_mode: AlphaMode::Mask(0.5),
-                cull_mode: None,
-                ..default()
-            }),
-            ..default()
-        },
-        Movable,
-    ));
-
-    // cube
-    commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
-            material: materials.add(StandardMaterial {
-                base_color: Color::PINK,
-                ..default()
-            }),
-            transform: Transform::from_xyz(0.0, 0.5, 0.0),
-            ..default()
-        },
-        Movable,
-    ));
-    // sphere
-    commands.spawn((
-        PbrBundle {
-            mesh: meshes.add(Mesh::from(shape::UVSphere {
-                radius: 0.5,
-                ..default()
-            })),
-            material: materials.add(StandardMaterial {
-                base_color: Color::LIME_GREEN,
-                ..default()
-            }),
-            transform: Transform::from_xyz(1.5, 1.0, 1.5),
-            ..default()
-        },
-        Movable,
-    ));
 
     commands.spawn((
         Camera3dBundle {
@@ -106,28 +76,4 @@ fn setup(
         },
         PanOrbitCamera::default(),
     ));
-}
-
-fn movement(
-    input: Res<Input<KeyCode>>,
-    time: Res<Time>,
-    mut query: Query<&mut Transform, With<Movable>>,
-) {
-    for mut transform in &mut query {
-        let mut direction = Vec3::ZERO;
-        if input.pressed(KeyCode::Up) {
-            direction.y += 1.0;
-        }
-        if input.pressed(KeyCode::Down) {
-            direction.y -= 1.0;
-        }
-        if input.pressed(KeyCode::Left) {
-            direction.x -= 1.0;
-        }
-        if input.pressed(KeyCode::Right) {
-            direction.x += 1.0;
-        }
-
-        transform.translation += time.delta_seconds() * 2.0 * direction;
-    }
 }
