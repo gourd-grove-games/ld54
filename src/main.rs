@@ -7,10 +7,9 @@ use bevy::pbr::DirectionalLightShadowMap;
 use bevy::prelude::*;
 use bevy::{
     asset::LoadState,
-    core_pipeline::experimental::taa::{TemporalAntiAliasBundle, TemporalAntiAliasPlugin},
     core_pipeline::Skybox,
     core_pipeline::{bloom::BloomSettings, tonemapping::Tonemapping},
-    pbr::ScreenSpaceAmbientOcclusionBundle,
+    // pbr::ScreenSpaceAmbientOcclusionBundle,
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
 #[cfg(feature = "inspector")] // egui inspector does not work on wasm
@@ -34,7 +33,7 @@ fn main() {
             ..default()
         }))
         .add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(TemporalAntiAliasPlugin)
+        // .add_plugins(TemporalAntiAliasPlugin)
         .add_plugins(tilemap::GroundMapPlugin);
 
     #[cfg(feature = "inspector")]
@@ -74,23 +73,22 @@ fn spawn_camera(mut commands: Commands, asset_server: Res<AssetServer>) {
         image_handle: skybox_handle.clone(),
     });
 
-    commands
-        .spawn((
-            Camera3dBundle {
-                camera: Camera {
-                    hdr: true,
-                    ..default()
-                },
-                tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
-                transform: Transform::from_xyz(8.0, 4.5, 8.0),
+    commands.spawn((
+        Camera3dBundle {
+            camera: Camera {
+                hdr: true,
                 ..default()
             },
-            BloomSettings::default(),
-            PanOrbitCamera { ..default() },
-            Skybox(skybox_handle),
-        ))
-        .insert(ScreenSpaceAmbientOcclusionBundle::default())
-        .insert(TemporalAntiAliasBundle::default());
+            tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+            transform: Transform::from_xyz(8.0, 4.5, 8.0),
+            ..default()
+        },
+        BloomSettings::default(),
+        PanOrbitCamera { ..default() },
+        Skybox(skybox_handle),
+    ));
+    // .insert(ScreenSpaceAmbientOcclusionBundle::default());
+    // .insert(TemporalAntiAliasBundle::default());
 }
 
 fn png_metadata(
