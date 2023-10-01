@@ -1,0 +1,44 @@
+
+name: Build and Deploy WASM Game
+
+on:
+  push:
+    branches:
+      - main # or the branch where you want this action to run
+
+jobs:
+  build_and_deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+
+      - name: Build WASM binary
+        run: |
+          cargo build --release --target wasm32-unknown-unknown
+
+      - name: Generate files with wasm-bindgen
+        run: |
+          cargo install wasm-bindgen-cli
+          wasm-bindgen --out-dir ./ --target web ./target/wasm32-unknown-unknown/release/ld54.wasm
+
+      - name: Deploy to GitHub Pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          rm -rf .github .cargo src target Cargo.toml Cargo.lock Justfile README.md
+          git checkout --orphan gh-pages
+          git add .
+          git commit -m "Deploy WASM game to GitHub Pages"
+          git push -u origin gh-pages --force
