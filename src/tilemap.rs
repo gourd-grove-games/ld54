@@ -6,9 +6,7 @@ pub const BOARD_SIZE_J: u32 = 8;
 pub struct GroundMapPlugin;
 impl Plugin for GroundMapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(TilemapPlugin)
-            .add_systems(Startup, spawn_tilemap)
-            // .add_systems(Update, camera::movement)
+        app.add_systems(Startup, spawn_tilemap)
             .add_systems(Update, gizmos);
     }
 }

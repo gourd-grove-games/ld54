@@ -19,7 +19,6 @@ mod tilemap;
 
 fn main() {
     App::new()
-        .insert_resource(DirectionalLightShadowMap { size: 2048 })
         .insert_resource(ClearColor(Color::rgb_linear(0.5, 1.3, 1.9)))
         .insert_resource(DirectionalLightShadowMap { size: 2048 })
         .insert_resource(AmbientLight {
