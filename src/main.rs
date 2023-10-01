@@ -13,13 +13,14 @@ use bevy::{
     pbr::ScreenSpaceAmbientOcclusionBundle,
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
+#[cfg(feature = "inspector")] // egui inspector does not work on wasm
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panorbit_camera::*;
 mod tilemap;
 
 fn main() {
-    App::new()
-        .insert_resource(ClearColor(Color::rgb_linear(0.5, 1.3, 1.9)))
+    let mut app = App::new();
+    app.insert_resource(ClearColor(Color::rgb_linear(0.5, 1.3, 1.9)))
         .insert_resource(DirectionalLightShadowMap { size: 2048 })
         .insert_resource(AmbientLight {
             color: Color::rgb_u8(210, 220, 240),
@@ -34,9 +35,12 @@ fn main() {
         }))
         .add_plugins(PanOrbitCameraPlugin)
         .add_plugins(TemporalAntiAliasPlugin)
-        .add_plugins(tilemap::GroundMapPlugin)
-        .add_plugins(WorldInspectorPlugin::default())
-        .add_systems(Startup, spawn_camera)
+        .add_plugins(tilemap::GroundMapPlugin);
+
+    #[cfg(feature = "inspector")]
+    app.add_plugins(WorldInspectorPlugin::default());
+
+    app.add_systems(Startup, spawn_camera)
         .add_systems(Startup, spawn_emmissive_cube)
         .add_systems(Update, png_metadata)
         .run();
