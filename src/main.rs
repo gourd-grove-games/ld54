@@ -7,12 +7,17 @@ use bevy::pbr::DirectionalLightShadowMap;
 use bevy::prelude::*;
 use bevy::{
     asset::LoadState,
-    core_pipeline::experimental::taa::{TemporalAntiAliasBundle, TemporalAntiAliasPlugin},
     core_pipeline::Skybox,
     core_pipeline::{bloom::BloomSettings, tonemapping::Tonemapping},
-    pbr::ScreenSpaceAmbientOcclusionBundle,
     render::render_resource::{TextureViewDescriptor, TextureViewDimension},
 };
+
+#[cfg(not(feature = "webgl2"))]
+use bevy::{
+    core_pipeline::experimental::taa::{TemporalAntiAliasBundle, TemporalAntiAliasPlugin},
+    pbr::ScreenSpaceAmbientOcclusionBundle,
+};
+
 #[cfg(feature = "inspector")] // egui inspector does not work on wasm
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panorbit_camera::*;
@@ -28,14 +33,17 @@ fn main() {
         })
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
+                fit_canvas_to_parent: true,
                 title: String::from("Permaculture Tycoon"),
                 ..default()
             }),
             ..default()
         }))
         .add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(TemporalAntiAliasPlugin)
         .add_plugins(tilemap::GroundMapPlugin);
+
+    #[cfg(not(feature = "webgl2"))]
+    app.add_plugins(TemporalAntiAliasPlugin);
 
     #[cfg(feature = "inspector")]
     app.add_plugins(WorldInspectorPlugin::default());
@@ -74,7 +82,7 @@ fn spawn_camera(mut commands: Commands, asset_server: Res<AssetServer>) {
         image_handle: skybox_handle.clone(),
     });
 
-    commands
+    let _camera_id = commands
         .spawn((
             Camera3dBundle {
                 camera: Camera {
@@ -89,8 +97,15 @@ fn spawn_camera(mut commands: Commands, asset_server: Res<AssetServer>) {
             PanOrbitCamera { ..default() },
             Skybox(skybox_handle),
         ))
-        .insert(ScreenSpaceAmbientOcclusionBundle::default())
-        .insert(TemporalAntiAliasBundle::default());
+        .id();
+
+    #[cfg(not(feature = "webgl2"))]
+    {
+        commands
+            .entity(_camera_id)
+            .insert(ScreenSpaceAmbientOcclusionBundle::default())
+            .insert(TemporalAntiAliasBundle::default());
+    }
 }
 
 fn png_metadata(
