@@ -1,4 +1,3 @@
-
 name: Build and Deploy WASM Game
 
 on:
@@ -24,7 +23,7 @@ jobs:
 
       - name: Build WASM binary
         run: |
-          cargo build --release --target wasm32-unknown-unknown
+          RUSTFLAGS=--cfg=web_sys_unstable_apis cargo build --release --target wasm32-unknown-unknown
 
       - name: Generate files with wasm-bindgen
         run: |
