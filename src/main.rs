@@ -17,8 +17,11 @@ use bevy::{
         texture::CompressedImageFormats,
     },
 };
+use bevy_ecs_tilemap::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_panorbit_camera::*;
+mod camera;
+mod tilemap;
 
 const CUBEMAPS: &[(&str, CompressedImageFormats)] = &[
     ("textures/bsb.png", CompressedImageFormats::NONE),
@@ -36,27 +39,35 @@ const CUBEMAPS: &[(&str, CompressedImageFormats)] = &[
     ),
 ];
 
-const BOARD_SIZE_I: usize = 5;
-const BOARD_SIZE_J: usize = 5;
-
 fn main() {
     App::new()
-        .init_resource::<Board>()
-        .register_type::<BoardPos>()
-        .register_type::<BaseTile>()
-        .register_type::<Board>()
-        .insert_resource(DirectionalLightShadowMap { size: 2048 })
-        .add_plugins(DefaultPlugins)
-        .add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(TemporalAntiAliasPlugin)
-        .add_systems(Startup, setup)
-        .add_systems(
-            Update,
-            (cycle_cubemap_asset, asset_loaded.after(cycle_cubemap_asset)),
-        )
-        .insert_resource(ClearColor(Color::rgb_linear(0.5, 1.3, 1.9)))
-        .insert_resource(DirectionalLightShadowMap { size: 2048 })
+        // .init_resource::<Board>()
+        // .register_type::<BoardPos>()
+        // .register_type::<BaseTile>()
+        // .register_type::<Board>()
+        // .insert_resource(DirectionalLightShadowMap { size: 2048 })
+        // .insert_resource(ClearColor(Color::rgb_linear(0.5, 1.3, 1.9)))
+        // .insert_resource(DirectionalLightShadowMap { size: 2048 })
+        .add_plugins(
+            DefaultPlugins
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        title: String::from("Permaculture Tycoon"),
+                        ..default()
+                    }),
+                    ..default()
+                })
+                .set(ImagePlugin::default_nearest()),
+        ) // .add_plugins(PanOrbitCameraPlugin)
+        // .add_plugins(TemporalAntiAliasPlugin)
+        .add_plugins(tilemap::GroundMapPlugin)
         .add_plugins(WorldInspectorPlugin::default())
+        // .add_systems(Startup, spawn_camera)
+        // .add_systems(Startup, setup)
+        // .add_systems(
+        //     Update,
+        //     (cycle_cubemap_asset, asset_loaded.after(cycle_cubemap_asset)),
+        // )
         .run();
 }
 
@@ -70,15 +81,16 @@ struct Cubemap {
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 struct Board {
-    i_len: usize,
-    j_len: usize,
+    i_len: u32,
+    j_len: u32,
 }
 
+// todo deprecate
 impl Default for Board {
     fn default() -> Self {
         Board {
-            i_len: BOARD_SIZE_I,
-            j_len: BOARD_SIZE_J,
+            i_len: tilemap::BOARD_SIZE_X,
+            j_len: tilemap::BOARD_SIZE_Y,
         }
     }
 }
@@ -124,8 +136,54 @@ enum BaseTile {
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 struct BoardPos {
-    i: usize,
-    j: usize,
+    i: u32,
+    j: u32,
+}
+
+fn spawn_camera(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.spawn(Camera2dBundle::default());
+    commands.spawn(DirectionalLightBundle {
+        directional_light: DirectionalLight {
+            illuminance: 20000.0,
+            shadows_enabled: true,
+            ..default()
+        },
+        transform: Transform::from_rotation(Quat::from_euler(
+            EulerRot::ZYX,
+            0.0,
+            PI / 2.,
+            -PI / 4.,
+        )),
+        ..default()
+    });
+
+    // let skybox_handle = asset_server.load(CUBEMAPS[0].0);
+
+    // ambient light
+    // NOTE: The ambient light is used to scale how bright the environment map is so with a bright
+    // environment map, use an appropriate color and brightness to match
+    commands.insert_resource(AmbientLight {
+        color: Color::rgb_u8(210, 220, 240),
+        brightness: 1.0,
+    });
+
+    // commands
+    //     .spawn((
+    //         Camera3dBundle {
+    //             camera: Camera {
+    //                 hdr: true,
+    //                 ..default()
+    //             },
+    //             tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+    //             transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
+    //             ..default()
+    //         },
+    //         BloomSettings::default(),
+    //         PanOrbitCamera::default(),
+    //         Skybox(skybox_handle.clone()),
+    //     ))
+    //     .insert(ScreenSpaceAmbientOcclusionBundle::default())
+    //     .insert(TemporalAntiAliasBundle::default());
 }
 
 fn setup(
@@ -135,6 +193,7 @@ fn setup(
     asset_server: Res<AssetServer>,
     board: Res<Board>,
 ) {
+    let skybox_handle = asset_server.load(CUBEMAPS[0].0);
     board.spawn(&mut commands, &asset_server);
     let material_emissive1 = materials.add(StandardMaterial {
         emissive: Color::rgb_linear(13.99, 5.32, 2.0), // 4. Put something bright in a dark environment to see the effect
@@ -151,49 +210,6 @@ fn setup(
         transform: Transform::from_xyz(0.0, 0.5, 0.0),
         ..default()
     });
-
-    commands.spawn(DirectionalLightBundle {
-        directional_light: DirectionalLight {
-            illuminance: 20000.0,
-            shadows_enabled: true,
-            ..default()
-        },
-        transform: Transform::from_rotation(Quat::from_euler(
-            EulerRot::ZYX,
-            0.0,
-            PI / 2.,
-            -PI / 4.,
-        )),
-        ..default()
-    });
-
-    let skybox_handle = asset_server.load(CUBEMAPS[0].0);
-
-    // ambient light
-    // NOTE: The ambient light is used to scale how bright the environment map is so with a bright
-    // environment map, use an appropriate color and brightness to match
-    commands.insert_resource(AmbientLight {
-        color: Color::rgb_u8(210, 220, 240),
-        brightness: 1.0,
-    });
-
-    commands
-        .spawn((
-            Camera3dBundle {
-                camera: Camera {
-                    hdr: true,
-                    ..default()
-                },
-                tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
-                transform: Transform::from_translation(Vec3::new(0.0, 1.5, 5.0)),
-                ..default()
-            },
-            BloomSettings::default(),
-            PanOrbitCamera::default(),
-            Skybox(skybox_handle.clone()),
-        ))
-        .insert(ScreenSpaceAmbientOcclusionBundle::default())
-        .insert(TemporalAntiAliasBundle::default());
 
     commands.insert_resource(Cubemap {
         is_loaded: false,
