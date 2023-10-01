@@ -1,20 +1,39 @@
-use bevy::prelude::*;
+use std::f32::consts::PI;
+
+use bevy::{prelude::*, render::camera::ScalingMode};
 use bevy_ecs_tilemap::prelude::*;
 
 use crate::camera;
 
-pub const BOARD_SIZE_X: u32 = 9;
-pub const BOARD_SIZE_Y: u32 = 9;
+pub const BOARD_SIZE_X: u32 = 15;
+pub const BOARD_SIZE_Y: u32 = 15;
 pub struct GroundMapPlugin;
 impl Plugin for GroundMapPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(TilemapPlugin)
             .add_systems(Startup, spawn_tilemap)
-            .add_systems(Update, camera::movement);
+            .add_systems(Update, camera::movement)
+            .add_systems(Update, gizmos);
     }
 }
+fn gizmos(mut gizmos: Gizmos) {
+    let axis_len = 100.0;
+    gizmos.line(Vec3::ZERO, Vec3::X * axis_len, Color::RED);
+    gizmos.line(Vec3::ZERO, Vec3::Y * axis_len, Color::GREEN);
+    gizmos.line(Vec3::ZERO, Vec3::Z * axis_len, Color::BLUE);
+}
+
 fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn(Camera2dBundle {
+        transform: Transform::from_rotation(Quat::from_rotation_x(PI / 3.0)),
+        projection: OrthographicProjection {
+            far: 1000.0,
+            near: -1000.0,
+            scaling_mode: ScalingMode::WindowSize(5.0),
+            ..default()
+        },
+        ..default()
+    });
     let grass_tex_handle: Handle<Image> = asset_server.load("textures/grass.png");
     let map_size = TilemapSize {
         x: BOARD_SIZE_X,
@@ -24,7 +43,7 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
     // TilemapBundle requires TileStorage component; a grid of tile entities
     // Create TileStorage with pre-allocated capacity
     let mut tile_storage = TileStorage::empty(map_size);
-    let map_type = TilemapType::Square;
+    let map_type = TilemapType::Isometric(IsoCoordSystem::Diamond);
 
     // Create empty tilemap entity
     // added to each tile as tilemap_id component
