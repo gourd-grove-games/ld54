@@ -1,4 +1,5 @@
 # ld54
 [Play Now](https://gourd-grove-games.github.io/ld54/)
-- Requires Chrome due to WebGPU
+- WebGL Deployment
 - Hosted on Github Pages
+- Todo: WebGPU Deployment, separate page
