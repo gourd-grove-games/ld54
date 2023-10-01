@@ -2,6 +2,6 @@
 run-web:
 	cargo run --target wasm32-unknown-unknown
 
-# Run natively on your OS
+# Run natively on your OS, use dynamic_linking
 run-native:
-	cargo run
+	cargo run --features bevy/dynamic_linking
