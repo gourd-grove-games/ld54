@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_ecs_tilemap::prelude::*;
+use rand::{thread_rng, Rng};
 
 pub const BOARD_SIZE_I: u32 = 8;
 pub const BOARD_SIZE_J: u32 = 8;
@@ -10,6 +11,7 @@ impl Plugin for GroundMapPlugin {
             .add_systems(Update, gizmos);
     }
 }
+
 fn gizmos(mut gizmos: Gizmos) {
     let axis_len = 100.0;
     gizmos.line(Vec3::ZERO, Vec3::X * axis_len, Color::RED);
@@ -31,7 +33,6 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Create empty tilemap entity
     // added to each tile as tilemap_id component
     let tilemap_entity = commands.spawn_empty().id();
-    let cell_scene = asset_server.load("models/grass_tile.glb#Scene0");
     commands.entity(tilemap_entity).with_children(|parent| {
         for x in 0..map_size.x {
             for y in 0..map_size.y {
@@ -44,7 +45,7 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
                             ..Default::default()
                         },
                         SceneBundle {
-                            scene: cell_scene.clone(),
+                            scene: TileType::random().scene_handle(&asset_server),
                             transform: Transform::from_xyz(x as f32, 0.0, y as f32),
                             ..default()
                         },
@@ -76,4 +77,38 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         Name::new("Ground Tilemap"),
     ));
+}
+
+#[derive(Default)]
+pub enum TileType {
+    #[default]
+    Grass,
+    Stone,
+    Wood,
+}
+
+impl TileType {
+    fn asset_path(&self) -> &'static str {
+        match self {
+            TileType::Grass => "models/grass_tile.glb#Scene0",
+            TileType::Stone => "models/stone_tile.glb#Scene0",
+            TileType::Wood => "models/wood_tile.glb#Scene0",
+        }
+    }
+
+    pub fn scene_handle(&self, asset_server: &Res<AssetServer>) -> Handle<Scene> {
+        asset_server.load(self.asset_path())
+    }
+
+    // Weighted random; 50% grass, 20% stone, 30% wood
+    fn random() -> TileType {
+        use TileType::*;
+        let mut random = thread_rng();
+        match random.gen_range(0..100) {
+            n if n < 50 => Grass,
+            n if n < 70 => Stone,
+            n if n < 100 => Wood,
+            _ => Grass,
+        }
+    }
 }
