@@ -20,6 +20,7 @@ use bevy::{
 
 #[cfg(feature = "inspector")] // egui inspector does not work on wasm
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_mod_picking::prelude::RaycastPickCamera;
 use bevy_panorbit_camera::*;
 mod tilemap;
 
@@ -46,7 +47,8 @@ fn main() {
     app.add_plugins(TemporalAntiAliasPlugin);
 
     #[cfg(feature = "inspector")]
-    app.add_plugins(WorldInspectorPlugin::default());
+    app.add_plugins(WorldInspectorPlugin::default())
+        .add_systems(Update, _gizmos);
 
     app.add_systems(Startup, spawn_camera)
         .add_systems(Startup, spawn_emmissive_cube)
@@ -96,6 +98,7 @@ fn spawn_camera(mut commands: Commands, asset_server: Res<AssetServer>) {
             BloomSettings::default(),
             PanOrbitCamera { ..default() },
             Skybox(skybox_handle),
+            RaycastPickCamera::default(),
         ))
         .id();
 
@@ -142,10 +145,17 @@ fn spawn_emmissive_cube(
     });
 
     // cube
-    commands.spawn(PbrBundle {
+    commands.spawn((PbrBundle {
         mesh: meshes.add(Mesh::from(shape::Cube { size: 1.0 })),
         material: material_emissive1,
         transform: Transform::from_xyz(0.0, 2.5, 0.0),
         ..default()
-    });
+    },));
+}
+
+fn _gizmos(mut gizmos: Gizmos) {
+    let axis_len = 100.0;
+    gizmos.line(Vec3::ZERO, Vec3::X * axis_len, Color::RED);
+    gizmos.line(Vec3::ZERO, Vec3::Y * axis_len, Color::GREEN);
+    gizmos.line(Vec3::ZERO, Vec3::Z * axis_len, Color::BLUE);
 }
