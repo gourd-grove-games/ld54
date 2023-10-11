@@ -61,7 +61,6 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
                             },
                             tile_pos,
                             tile_type.name(),
-                            PickableBundle::default(),
                             On::<Pointer<Click>>::send_event::<ClickTile>(),
                         ))
                         .id();
