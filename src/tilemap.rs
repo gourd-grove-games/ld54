@@ -179,9 +179,6 @@ fn handle_tile_click(
                     );
                 }
             }
-            if i > 2 {
-                break;
-            }
         }
     }
 }
