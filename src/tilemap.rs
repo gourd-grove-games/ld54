@@ -170,14 +170,18 @@ fn handle_tile_click(
     for event in greetings.iter() {
         // Traverse 3 layers of parents to get the tile entity's components
         let entity = event.entity;
-        let parent = parent_query.get(entity).unwrap();
-        let parent = parent_query.get(parent.get()).unwrap();
-        let parent = parent_query.get(parent.get()).unwrap().get();
-        if let Ok((name, tile_pos)) = tile_query.get(parent) {
-            info!(
-                "CLICK {:?} {name} {:?}; {:?}; depth: {:?}",
-                event.button, parent, tile_pos, event.depth
-            );
+        for (i, ancestor) in parent_query.iter_ancestors(entity).enumerate() {
+            if i == 2 {
+                if let Ok((name, tile_pos)) = tile_query.get(ancestor) {
+                    info!(
+                        "CLICK {:?} {name} {:?}; {:?}; depth: {:?}",
+                        event.button, ancestor, tile_pos, event.depth
+                    );
+                }
+            }
+            if i > 2 {
+                break;
+            }
         }
     }
 }
