@@ -45,6 +45,7 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
             ),
             GlobalTransform::default(),
             Name::new("Ground Tilemap"),
+            On::<Pointer<Click>>::send_event::<ClickTile>(),
         ))
         .with_children(|parent| {
             for x in 0..map_size.x {
@@ -61,7 +62,6 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
                             },
                             tile_pos,
                             tile_type.name(),
-                            On::<Pointer<Click>>::send_event::<ClickTile>(),
                         ))
                         .id();
                     tile_storage.set(&tile_pos, tile_entity);
