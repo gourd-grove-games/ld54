@@ -4,10 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-inspector = [
-    "bevy-inspector-egui",
-    "bevy_panorbit_camera/bevy_egui",
-]
+inspector = ["bevy-inspector-egui", "bevy_panorbit_camera/bevy_egui"]
 webgl2 = ["bevy/webgl2"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -43,8 +40,9 @@ bevy_ecs_tilemap = "0.11"
 bevy_mod_picking = { version = "0.15.0", default-features = false, features = [
     "backend_raycast",
     "debug",
-    "selection",
+    # "selection",
     "highlight",
 ] }
 bevy_panorbit_camera = { version = "0.8.0" }
 rand = "0.8"
+strum_macros = "0.25.2"
