@@ -1,22 +1,23 @@
+use bevy::math::vec4;
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
+use bevy_ecs_tilemap::map::TilemapSize;
+use bevy_ecs_tilemap::tiles::{TilePos, TileStorage};
+use bevy_mod_picking::prelude::*;
 use rand::{thread_rng, Rng};
 
 pub const BOARD_SIZE_I: u32 = 8;
 pub const BOARD_SIZE_J: u32 = 8;
+
 pub struct GroundMapPlugin;
 impl Plugin for GroundMapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_tilemap)
-            .add_systems(Update, gizmos);
+        let picking_plugin = DefaultPickingPlugins.build();
+        #[cfg(not(feature = "inspector"))]
+        let picking_plugin = picking_plugin.disable::<DebugPickingPlugin>();
+        app.add_plugins(picking_plugin)
+            .add_systems(Startup, spawn_tilemap)
+            .add_systems(Update, make_pickable);
     }
-}
-
-fn gizmos(mut gizmos: Gizmos) {
-    let axis_len = 100.0;
-    gizmos.line(Vec3::ZERO, Vec3::X * axis_len, Color::RED);
-    gizmos.line(Vec3::ZERO, Vec3::Y * axis_len, Color::GREEN);
-    gizmos.line(Vec3::ZERO, Vec3::Z * axis_len, Color::BLUE);
 }
 
 fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -28,55 +29,49 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
     // TilemapBundle requires TileStorage component; a grid of tile entities
     // Create TileStorage with pre-allocated capacity
     let mut tile_storage = TileStorage::empty(map_size);
-    let map_type = TilemapType::Square;
 
     // Create empty tilemap entity
     // added to each tile as tilemap_id component
-    let tilemap_entity = commands.spawn_empty().id();
-    commands.entity(tilemap_entity).with_children(|parent| {
-        for x in 0..map_size.x {
-            for y in 0..map_size.y {
-                let tile_pos = TilePos { x, y };
-                let tile_entity = parent
-                    .spawn((
-                        TileBundle {
-                            position: tile_pos,
-                            tilemap_id: TilemapId(tilemap_entity),
-                            ..Default::default()
-                        },
-                        SceneBundle {
-                            scene: TileType::random().scene_handle(&asset_server),
-                            transform: Transform::from_xyz(x as f32, 0.0, y as f32),
-                            ..default()
-                        },
-                        Name::new("Tile"),
-                    ))
-                    .id();
-                tile_storage.set(&tile_pos, tile_entity);
-            }
-        }
-    });
-
-    let tile_size = TilemapTileSize { x: 1.0, y: 1.0 };
-    let grid_size = tile_size.into();
-
-    // Insert TilemapBundle to the tilemap entity
-    commands.entity(tilemap_entity).insert((
-        bevy_ecs_tilemap::StandardTilemapBundle {
-            grid_size,
-            tile_size,
-            size: map_size,
-            map_type,
-            storage: tile_storage,
-            transform: Transform::from_xyz(
+    commands
+        .spawn((
+            Visibility::Visible,
+            ComputedVisibility::default(),
+            Transform::from_xyz(
                 (BOARD_SIZE_I - 1) as f32 / -2.0,
                 0.0,
                 (BOARD_SIZE_J - 1) as f32 / -2.0,
             ),
-            ..default()
-        },
-        Name::new("Ground Tilemap"),
-    ));
+            GlobalTransform::default(),
+            On::<Pointer<Click>>::run(|event: Listener<Pointer<Click>>| {
+                info!(
+                    "Clicked on entity {:?}; pos: {:?}",
+                    event.target, event.hit.position
+                );
+            }),
+            Name::new("Ground Tilemap"),
+        ))
+        .with_children(|parent| {
+            for x in 0..map_size.x {
+                for y in 0..map_size.y {
+                    let tile_pos = TilePos { x, y };
+                    let height: f32 = rand::thread_rng().gen_range(0.0..0.05);
+                    let tile_entity = parent
+                        .spawn((
+                            SceneBundle {
+                                scene: TileType::random().scene_handle(&asset_server),
+                                transform: Transform::from_xyz(x as f32, height, y as f32),
+                                ..default()
+                            },
+                            Name::new("Tile"),
+                        ))
+                        .id();
+                    tile_storage.set(&tile_pos, tile_entity);
+                }
+            }
+        })
+        .insert(tile_storage);
+
+    info!("spawned tilemap");
 }
 
 #[derive(Default)]
@@ -103,12 +98,43 @@ impl TileType {
     // Weighted random; 50% grass, 20% stone, 30% wood
     fn random() -> TileType {
         use TileType::*;
-        let mut random = thread_rng();
-        match random.gen_range(0..100) {
+        match thread_rng().gen_range(0..100) {
             n if n < 50 => Grass,
             n if n < 70 => Stone,
             n if n < 100 => Wood,
             _ => Grass,
         }
+    }
+}
+
+/// Used to tint the mesh instead of simply replacing the mesh's material with a single color. See
+/// `tinted_highlight` for more details.
+const HIGHLIGHT_TINT: Highlight<StandardMaterial> = Highlight {
+    hovered: Some(HighlightKind::new_dynamic(|matl| StandardMaterial {
+        base_color: matl.base_color + vec4(-0.5, -0.3, 0.9, 0.8), // hovered is blue
+        ..matl.to_owned()
+    })),
+    pressed: Some(HighlightKind::new_dynamic(|matl| StandardMaterial {
+        base_color: matl.base_color + vec4(-0.4, -0.4, 0.8, 0.8), // pressed is a different blue
+        ..matl.to_owned()
+    })),
+    selected: Some(HighlightKind::new_dynamic(|matl| StandardMaterial {
+        base_color: matl.base_color + vec4(-0.4, 0.8, -0.4, 0.0), // selected is green
+        ..matl.to_owned()
+    })),
+};
+
+/// Makes everything in the scene with a mesh pickable
+fn make_pickable(
+    mut commands: Commands,
+    meshes: Query<(Entity, &Name), (With<Handle<Mesh>>, Without<Pickable>)>,
+) {
+    for (entity, name) in meshes.iter() {
+        info!("Setting Pickable {name} entity: {:?}", entity);
+        commands.entity(entity).insert((
+            PickableBundle::default(),
+            RaycastPickTarget::default(),
+            HIGHLIGHT_TINT.clone(),
+        ));
     }
 }

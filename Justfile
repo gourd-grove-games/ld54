@@ -6,5 +6,9 @@ run-webgl2:
 	cargo run --target wasm32-unknown-unknown --release --features webgl2
 
 # Run natively on your OS, use dynamic_linking
+run-native-inspector:
+	RUST_LOG="info,wgpu_core=warn,bevy_mod_picking=trace" cargo run --features inspector,bevy/dynamic_linking
+
+# Run natively without the inspector
 run-native:
-	cargo run --features inspector,bevy/dynamic_linking
+	RUST_LOG="info,wgpu_core=warn,bevy_mod_picking=trace" cargo run --features bevy/dynamic_linking
