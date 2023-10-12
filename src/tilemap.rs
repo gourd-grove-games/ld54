@@ -82,13 +82,8 @@ pub enum TileType {
 }
 
 impl TileType {
-    fn asset_path(&self) -> &'static str {
-        use TileType::*;
-        match self {
-            TileGrass => "models/grass_tile.glb#Scene0",
-            TileStone => "models/stone_tile.glb#Scene0",
-            TileWood => "models/wood_tile.glb#Scene0",
-        }
+    fn asset_path(&self) -> String {
+        format!("models/{self}.glb#Scene0")
     }
 
     fn name(&self) -> Name {
