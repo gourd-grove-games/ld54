@@ -2,7 +2,8 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::map::TilemapSize;
 use bevy_ecs_tilemap::tiles::{TilePos, TileStorage};
 use bevy_mod_picking::prelude::*;
-use rand::Rng;
+
+use tile_type::{Plantable, TileBundle};
 mod pick;
 mod tile_type;
 
@@ -14,7 +15,7 @@ impl Plugin for GroundMapPlugin {
     fn build(&self, app: &mut App) {
         use pick::*;
         let picking_plugin = DefaultPickingPlugins.build();
-        #[cfg(not(feature = "inspector"))]
+        #[cfg(not(feature = "debug"))]
         let picking_plugin = picking_plugin.disable::<DebugPickingPlugin>();
         app.add_event::<ClickTile>()
             .add_plugins(picking_plugin)
@@ -52,19 +53,12 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
             for x in 0..map_size.x {
                 for y in 0..map_size.y {
                     let tile_pos = TilePos { x, y };
-                    let height: f32 = rand::thread_rng().gen_range(0.0..0.05);
-                    let tile_type = tile_type::TileType::random();
-                    let tile_entity = parent
-                        .spawn((
-                            SceneBundle {
-                                scene: tile_type.scene_handle(&asset_server),
-                                transform: Transform::from_xyz(x as f32, height, y as f32),
-                                ..default()
-                            },
-                            tile_pos,
-                            tile_type.name(),
-                        ))
-                        .id();
+                    let tile_bundle = TileBundle::random(tile_pos, &asset_server);
+                    let tile_entity = if tile_bundle.tile_type.is_plantable() {
+                        parent.spawn((tile_bundle, Plantable)).id()
+                    } else {
+                        parent.spawn(tile_bundle).id()
+                    };
                     tile_storage.set(&tile_pos, tile_entity);
                 }
             }

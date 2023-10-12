@@ -22,6 +22,7 @@ use bevy::{
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_mod_picking::prelude::RaycastPickCamera;
 use bevy_panorbit_camera::*;
+mod plants;
 mod tilemap;
 
 fn main() {

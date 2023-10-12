@@ -3,6 +3,10 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::tiles::TilePos;
 use bevy_mod_picking::prelude::*;
 
+use crate::plants::{self, Plant};
+
+use super::tile_type::Plantable;
+
 #[derive(Event)]
 pub struct ClickTile {
     button: PointerButton,
@@ -24,7 +28,10 @@ impl From<ListenerInput<Pointer<Click>>> for ClickTile {
 pub fn handle_tile_click(
     tile_query: Query<(&Name, &TilePos)>,
     parent_query: Query<&Parent>,
+    plantable_query: Query<&Plantable>,
+    plant_query: Query<&plants::Plant>,
     mut greetings: EventReader<ClickTile>,
+    mut commands: Commands,
 ) {
     for event in greetings.iter() {
         // Traverse 3 layers of parents to get the tile entity's components
@@ -32,8 +39,22 @@ pub fn handle_tile_click(
         for (i, ancestor) in parent_query.iter_ancestors(entity).enumerate() {
             if i == 2 {
                 if let Ok((name, tile_pos)) = tile_query.get(ancestor) {
+                    let plantable = match plantable_query.get(ancestor) {
+                        Ok(_) => true,
+                        Err(_) => false,
+                    };
+                    if plantable && event.button == PointerButton::Primary {
+                        if let Ok(_) = plant_query.get(ancestor) {
+                            info!("Plant already exists at {:?} {:?}", tile_pos, name);
+                            return;
+                        } else {
+                            commands.entity(ancestor).insert(Plant);
+                            info!("Planting at {:?} {:?}", tile_pos, name);
+                            return;
+                        }
+                    }
                     info!(
-                        "CLICK {:?} {name} {:?}; {:?}; depth: {:?}",
+                        "CLICK {:?} {name} {:?}; {:?}; depth: {:?}; plantable: {plantable}",
                         event.button, ancestor, tile_pos, event.depth
                     );
                 }
