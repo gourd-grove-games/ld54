@@ -21,7 +21,7 @@ impl Plugin for GroundMapPlugin {
             .add_event::<ClickTile>()
             .add_plugins(picking_plugin)
             .add_systems(Startup, spawn_tilemap)
-            .add_systems(Update, (make_pickable, click_mesh_to_tile));
+            .add_systems(Update, (make_tiles_pickable, click_mesh_to_tile));
     }
 }
 

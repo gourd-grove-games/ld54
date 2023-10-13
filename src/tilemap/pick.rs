@@ -71,16 +71,24 @@ const HIGHLIGHT_TINT: Highlight<StandardMaterial> = Highlight {
 };
 
 /// Makes everything in the scene with a mesh pickable
-pub fn make_pickable(
+pub fn make_tiles_pickable(
     mut commands: Commands,
     meshes: Query<(Entity, &Name), (With<Handle<Mesh>>, Without<Pickable>)>,
+    parent_query: Query<&Parent>,
+    tile_query: Query<&TileType>,
 ) {
     for (entity, name) in meshes.iter() {
-        info!("Setting Pickable {name} entity: {:?}", entity);
-        commands.entity(entity).insert((
-            PickableBundle::default(),
-            RaycastPickTarget::default(),
-            HIGHLIGHT_TINT.clone(),
-        ));
+        for (i, ancestor) in parent_query.iter_ancestors(entity).enumerate() {
+            if i == 2 {
+                if let Ok(_) = tile_query.get(ancestor) {
+                    info!("Setting Pickable Tile {name} entity: {:?}", entity);
+                    commands.entity(entity).insert((
+                        PickableBundle::default(),
+                        RaycastPickTarget::default(),
+                        HIGHLIGHT_TINT.clone(),
+                    ));
+                }
+            }
+        }
     }
 }

@@ -14,20 +14,37 @@ impl Plugin for PlantingPlugin {
 use crate::tilemap::{pick::ClickTile, tile_type::TileType};
 #[derive(Component, Default, Clone, Copy, Display)]
 pub enum Plant {
-    Tree,
-    Shrub,
+    PlantTree,
+    PlantShrub,
     #[default]
-    Flower,
+    PlantFlower,
 }
 impl Plant {
     pub fn random() -> Self {
         use Plant::*;
         match thread_rng().gen_range(0..3) {
-            0 => Tree,
-            1 => Shrub,
-            2 => Flower,
-            _ => Flower,
+            0 => PlantTree,
+            1 => PlantShrub,
+            2 => PlantFlower,
+            _ => PlantFlower,
         }
+    }
+
+    fn asset_path(&self) -> String {
+        format!("models/{self}/{self}.gltf#Scene0")
+    }
+
+    fn scale(&self) -> f32 {
+        use Plant::*;
+        match self {
+            PlantTree => 0.2,
+            PlantShrub => 0.01,
+            PlantFlower => 0.01,
+        }
+    }
+
+    pub fn scene_handle(&self, asset_server: &Res<AssetServer>) -> Handle<Scene> {
+        asset_server.load(self.asset_path())
     }
 }
 
@@ -38,6 +55,7 @@ fn plant_on_primary_click(
     mut tile_clicks: EventReader<ClickTile>,
     plantable_query: Query<(&TileType, &Plantable), Without<Plant>>,
     mut commands: Commands,
+    asset_server: Res<AssetServer>,
 ) {
     for event in tile_clicks.iter() {
         let Ok(_) = plantable_query.get(event.entity) else {
@@ -50,7 +68,16 @@ fn plant_on_primary_click(
                 event.tile_pos,                // unnamed arg tile_pos
                 name = event.tile_type.name()  // named args must be last
             );
-            commands.entity(event.entity).insert(plant);
+            commands
+                .entity(event.entity)
+                .insert(plant)
+                .with_children(|parent| {
+                    parent.spawn(SceneBundle {
+                        scene: plant.scene_handle(&asset_server),
+                        transform: Transform::from_scale(Vec3::splat(plant.scale())),
+                        ..default()
+                    });
+                });
         }
     }
 }
