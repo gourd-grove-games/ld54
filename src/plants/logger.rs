@@ -39,9 +39,9 @@ fn log_plantable_tile_clicks(
     plantable_query: Query<(&TileType, &Plantable), Without<Plant>>,
 ) {
     for event in tile_clicks.iter() {
-        if let Err(_) = plantable_query.get(event.entity) {
+        let Ok(_) = plantable_query.get(event.entity) else {
             continue;
-        }
+        };
         let name = event.tile_type.name();
         info!(
             "CLICK {:?} PLANTABLE {name} {:?}",
