@@ -32,10 +32,8 @@ impl From<ListenerInput<Pointer<Click>>> for ClickMesh {
 pub fn click_mesh_to_tile(
     tile_query: Query<(&TileType, &TilePos)>,
     parent_query: Query<&Parent>,
-    // plant_query: Query<&plants::Plant>,
     mut mesh_clicks: EventReader<ClickMesh>,
     mut tile_clicks: EventWriter<ClickTile>,
-    // mut commands: Commands,
 ) {
     for event in mesh_clicks.iter() {
         // Traverse 3 layers of parents to get the tile entity's components

@@ -36,7 +36,7 @@ fn log_non_plantable_tile_clicks(
 
 fn log_plantable_tile_clicks(
     mut tile_clicks: EventReader<ClickTile>,
-    plantable_query: Query<(&TileType, &Plantable), Without<Plant>>,
+    plantable_query: Query<&Plantable, Without<Plant>>,
 ) {
     for event in tile_clicks.iter() {
         let Ok(_) = plantable_query.get(event.entity) else {
@@ -52,10 +52,10 @@ fn log_plantable_tile_clicks(
 
 fn log_planted_tile_clicks(
     mut tile_clicks: EventReader<ClickTile>,
-    plant_query: Query<(&TileType, &Plant), With<Plantable>>,
+    plant_query: Query<&Plant, With<Plantable>>,
 ) {
     for event in tile_clicks.iter() {
-        let Ok((_, plant)) = plant_query.get(event.entity) else {
+        let Ok(plant) = plant_query.get(event.entity) else {
             continue;
         };
         let name = event.tile_type.name();
