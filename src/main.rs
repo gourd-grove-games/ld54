@@ -42,7 +42,8 @@ fn main() {
             ..default()
         }))
         .add_plugins(PanOrbitCameraPlugin)
-        .add_plugins(tilemap::GroundMapPlugin);
+        .add_plugins(tilemap::GroundMapPlugin)
+        .add_plugins((plants::PlantingPlugin, plants::logger::LoggerPlugin));
 
     #[cfg(not(feature = "webgl2"))]
     app.add_plugins(TemporalAntiAliasPlugin);

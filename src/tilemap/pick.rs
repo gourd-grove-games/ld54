@@ -3,60 +3,52 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::tiles::TilePos;
 use bevy_mod_picking::prelude::*;
 
-use crate::plants::{self, Plant};
+use super::tile_type::TileType;
 
-use super::tile_type::Plantable;
+#[derive(Event)]
+pub struct ClickMesh {
+    button: PointerButton,
+    entity: Entity,
+}
 
 #[derive(Event)]
 pub struct ClickTile {
-    button: PointerButton,
-    entity: Entity,
-    depth: f32,
+    pub entity: Entity,
+    pub tile_pos: TilePos,
+    pub tile_type: TileType,
+    pub button: PointerButton,
 }
 
-impl From<ListenerInput<Pointer<Click>>> for ClickTile {
+impl From<ListenerInput<Pointer<Click>>> for ClickMesh {
     fn from(event: ListenerInput<Pointer<Click>>) -> Self {
-        ClickTile {
+        ClickMesh {
             entity: event.target,
-            depth: event.hit.depth,
             button: event.button,
         }
     }
 }
 
 /// Unlike callback systems, this is a normal system that can be run in parallel with other systems.
-pub fn handle_tile_click(
-    tile_query: Query<(&Name, &TilePos)>,
+pub fn click_mesh_to_tile(
+    tile_query: Query<(&TileType, &TilePos)>,
     parent_query: Query<&Parent>,
-    plantable_query: Query<&Plantable>,
-    plant_query: Query<&plants::Plant>,
-    mut greetings: EventReader<ClickTile>,
-    mut commands: Commands,
+    // plant_query: Query<&plants::Plant>,
+    mut mesh_clicks: EventReader<ClickMesh>,
+    mut tile_clicks: EventWriter<ClickTile>,
+    // mut commands: Commands,
 ) {
-    for event in greetings.iter() {
+    for event in mesh_clicks.iter() {
         // Traverse 3 layers of parents to get the tile entity's components
         let entity = event.entity;
         for (i, ancestor) in parent_query.iter_ancestors(entity).enumerate() {
             if i == 2 {
-                if let Ok((name, tile_pos)) = tile_query.get(ancestor) {
-                    let plantable = match plantable_query.get(ancestor) {
-                        Ok(_) => true,
-                        Err(_) => false,
-                    };
-                    if plantable && event.button == PointerButton::Primary {
-                        if let Ok(_) = plant_query.get(ancestor) {
-                            info!("Plant already exists at {:?} {:?}", tile_pos, name);
-                            return;
-                        } else {
-                            commands.entity(ancestor).insert(Plant);
-                            info!("Planting at {:?} {:?}", tile_pos, name);
-                            return;
-                        }
-                    }
-                    info!(
-                        "CLICK {:?} {name} {:?}; {:?}; depth: {:?}; plantable: {plantable}",
-                        event.button, ancestor, tile_pos, event.depth
-                    );
+                if let Ok((tile_type, tile_pos)) = tile_query.get(ancestor) {
+                    tile_clicks.send(ClickTile {
+                        entity: ancestor,
+                        tile_pos: *tile_pos,
+                        tile_type: *tile_type,
+                        button: event.button,
+                    });
                 }
             }
         }

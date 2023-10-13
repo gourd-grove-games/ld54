@@ -28,12 +28,12 @@ impl TileBundle {
     }
 }
 
-#[derive(Component, Default, Display)]
+#[derive(Component, Default, Display, Clone, Copy)]
 pub enum TileType {
     #[default]
     TileGrass,
     TileStone,
-    TileWood,
+    TileDirt,
 }
 
 impl TileType {
@@ -55,7 +55,7 @@ impl TileType {
         match thread_rng().gen_range(0..100) {
             n if n < 50 => TileGrass,
             n if n < 70 => TileStone,
-            n if n < 100 => TileWood,
+            n if n < 100 => TileDirt,
             _ => TileGrass,
         }
     }
@@ -68,6 +68,3 @@ impl TileType {
         }
     }
 }
-
-#[derive(Component)]
-pub struct Plantable;

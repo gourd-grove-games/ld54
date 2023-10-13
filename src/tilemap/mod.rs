@@ -1,11 +1,11 @@
+use crate::plants::Plantable;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::map::TilemapSize;
 use bevy_ecs_tilemap::tiles::{TilePos, TileStorage};
 use bevy_mod_picking::prelude::*;
-
-use tile_type::{Plantable, TileBundle};
-mod pick;
-mod tile_type;
+use tile_type::TileBundle;
+pub mod pick;
+pub mod tile_type;
 
 pub const BOARD_SIZE_I: u32 = 8;
 pub const BOARD_SIZE_J: u32 = 8;
@@ -17,10 +17,11 @@ impl Plugin for GroundMapPlugin {
         let picking_plugin = DefaultPickingPlugins.build();
         #[cfg(not(feature = "debug"))]
         let picking_plugin = picking_plugin.disable::<DebugPickingPlugin>();
-        app.add_event::<ClickTile>()
+        app.add_event::<ClickMesh>()
+            .add_event::<ClickTile>()
             .add_plugins(picking_plugin)
             .add_systems(Startup, spawn_tilemap)
-            .add_systems(Update, (make_pickable, handle_tile_click));
+            .add_systems(Update, (make_pickable, click_mesh_to_tile));
     }
 }
 
@@ -47,7 +48,7 @@ fn spawn_tilemap(mut commands: Commands, asset_server: Res<AssetServer>) {
             ),
             GlobalTransform::default(),
             Name::new("Ground Tilemap"),
-            On::<Pointer<Click>>::send_event::<pick::ClickTile>(),
+            On::<Pointer<Click>>::send_event::<pick::ClickMesh>(),
         ))
         .with_children(|parent| {
             for x in 0..map_size.x {
